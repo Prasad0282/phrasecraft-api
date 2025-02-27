@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chatbot Interface</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f9;
+      }
+      .container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      h1,
+      h2 {
+        text-align: center;
+        color: #333;
+      }
+      select,
+      input,
+      button {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      .chatbox {
+        height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        background-color: #fafafa;
+      }
+      .message {
+        margin: 5px 0;
+      }
+      .message.user {
+        text-align: right;
+        color: #007bff;
+      }
+      .message.chatbot {
+        text-align: left;
+        color: #28a745;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Grammar Chatbot</h1>
+      <h2>Select a Topic</h2>
+      <select id="topics"></select>
+
+      <h2>Chat</h2>
+      <div class="chatbox" id="chatbox"></div>
+
+      <input
+        type="text"
+        id="userMessage"
+        placeholder="Type your message here..."
+      />
+      <button id="sendMessage">Send</button>
+      <button id="clearMemory">Clear Memory</button>
+
+      <h2>Conversation History</h2>
+      <button id="loadHistory">Load History</button>
+      <div id="history"></div>
+    </div>
+
+    <script>
+      const topicsDropdown = document.getElementById("topics");
+      const chatbox = document.getElementById("chatbox");
+      const userMessage = document.getElementById("userMessage");
+      const sendMessageBtn = document.getElementById("sendMessage");
+      const clearMemoryBtn = document.getElementById("clearMemory");
+      const loadHistoryBtn = document.getElementById("loadHistory");
+      const historyContainer = document.getElementById("history");
+
+      async function fetchTopics() {
+        const response = await fetch("/api/topics");
+        const data = await response.json();
+
+        topicsDropdown.innerHTML = data.topics
+          .map((topic) => `<option value="${topic}">${topic}</option>`)
+          .join("");
+      }
+
+      async function sendMessage() {
+        const topic = topicsDropdown.value;
+        const message = userMessage.value;
+
+        if (!message) return alert("Please enter a message.");
+
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic, message }),
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+
+        chatbox.innerHTML += `<div class="message user">You: ${message}</div>`;
+        chatbox.innerHTML += `<div class="message chatbot">Chatbot: ${data.response}</div>`;
+        chatbox.scrollTop = chatbox.scrollHeight;
+        userMessage.value = "";
+      }
+
+      async function clearMemory() {
+        const topic = topicsDropdown.value;
+
+        const response = await fetch("/api/clear_memory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic }),
+        });
+
+        const data = await response.json();
+        alert(data.message);
+      }
+
+      async function loadHistory() {
+        const topic = topicsDropdown.value;
+
+        const response = await fetch(
+          `/api/history?topic=${encodeURIComponent(topic)}`
+        );
+        const data = await response.json();
+
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+
+        historyContainer.innerHTML = data.history
+          .map(
+            (entry) =>
+              `<div><strong>${entry.sender}:</strong> ${entry.message}</div>`
+          )
+          .join("");
+      }
+
+      sendMessageBtn.addEventListener("click", sendMessage);
+      clearMemoryBtn.addEventListener("click", clearMemory);
+      loadHistoryBtn.addEventListener("click", loadHistory);
+
+      fetchTopics();
+    </script>
+  </body>
+</html>
